@@ -74,6 +74,10 @@ ARCHIVOS_FREESURFER = [
 # El ID da nombre a una carpeta y se pasa a FreeSurfer.
 ID_VALIDO = re.compile(r"^[A-Za-z0-9._-]+$")
 
+# Los scripts del pipeline insertan las rutas entre comillas dobles en un
+# comando de bash: estos caracteres lo romperían o inyectarían órdenes.
+CARACTERES_PELIGROSOS = re.compile(r'["$`\\]')
+
 # Paciente de demostración (fsaverage + Resources/Demo).
 ID_DEMO = "fsaverage_demo"
 
@@ -935,6 +939,18 @@ class VisualizacionWidget(ScriptedLoadableModuleWidget):
                     "No se encontraron los scripts del pipeline (ver "
                     "Registro detallado)."
                 )
+
+            for campo, nombre in (
+                ("freesurfer", "La carpeta de FreeSurfer"),
+                ("subjectsDir", "La carpeta de resultados"),
+                ("t1", "La ruta de la imagen T1"),
+            ):
+                if CARACTERES_PELIGROSOS.search(formulario[campo] or ""):
+                    problemas.append(
+                        f"{nombre} contiene comillas, '$', '`' o '\\', que "
+                        "FreeSurfer no admite: renombre la carpeta o "
+                        "elija otra."
+                    )
 
         if not formulario["subjectId"]:
             problemas.append(
@@ -3252,6 +3268,34 @@ class VisualizacionTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
 
         self.assertFalse(dialogo.isVisible())
+
+    def test_rutasConCaracteresPeligrosos(self):
+
+        self.delayDisplay("Rutas que romperían los comandos de FreeSurfer")
+
+        widget = slicer.modules.visualizacion.widgetRepresentation().self()
+        anterior = widget.subjectsDirEdit.text
+
+        try:
+            widget.subjectsDirEdit.setText('/tmp/pacientes"x')
+            self.assertTrue(any(
+                "carpeta de resultados contiene" in p
+                for p in widget.validarFormulario("completo")
+            ))
+
+            widget.subjectsDirEdit.setText("/tmp/pacientes $(whoami)")
+            self.assertTrue(any(
+                "carpeta de resultados contiene" in p
+                for p in widget.validarFormulario("completo")
+            ))
+
+            widget.subjectsDirEdit.setText("/tmp/pacientes normales")
+            self.assertFalse(any(
+                "contiene comillas" in p
+                for p in widget.validarFormulario("completo")
+            ))
+        finally:
+            widget.subjectsDirEdit.setText(anterior)
 
     def test_datosDemostracion(self):
 
