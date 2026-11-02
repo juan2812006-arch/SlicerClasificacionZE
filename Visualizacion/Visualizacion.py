@@ -3430,6 +3430,35 @@ class VisualizacionTest(ScriptedLoadableModuleTest):
             resultado["n_marcadas"]
         )
 
+    def test_encuadreParcelaSeleccionada(self):
+
+        self.delayDisplay("Zoom al seleccionar una parcela: cabe entera")
+
+        import math
+
+        from visualizacion_ml import VisualizacionML
+
+        distancia = VisualizacionML._distanciaEncuadre
+        tangente = math.tan(math.radians(30.0) / 2.0)
+
+        # Parcela mediana: su diámetro ocupa la mitad de la vista.
+        d = distancia(25.0, 30.0, 1.5)
+        self.assertAlmostEqual(2 * 25.0 / (2 * d * tangente), 0.5)
+
+        # Vista más alta que ancha: manda el lado horizontal (más lejos).
+        self.assertGreater(distancia(25.0, 30.0, 0.7), d)
+
+        # Parcela pequeña: no se acerca más que la distancia mínima.
+        self.assertEqual(
+            distancia(3.0, 30.0, 1.5), VisualizacionML.DISTANCIA_MINIMA
+        )
+
+        # Parcela grande: no se aleja más que la vista general, salvo que
+        # no quepa; nunca ocupa más del 90 % de la vista.
+        self.assertEqual(distancia(40.0, 30.0, 1.5, 200.0), 200.0)
+        d = distancia(70.0, 30.0, 1.5, 200.0)
+        self.assertLessEqual(2 * 70.0 / (2 * d * tangente), 0.9 + 1e-9)
+
     def test_reconstruccionContactosSEEG(self):
 
         self.delayDisplay("Reconstrucción de contactos SEEG")

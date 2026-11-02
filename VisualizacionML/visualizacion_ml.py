@@ -1583,7 +1583,9 @@ class VisualizacionML:
             return
 
         points = vtk_to_numpy(polyData.GetPoints().GetData()).astype(np.float64, copy=False)
-        center = np.mean(points, axis=0)
+        # Centro de la caja envolvente: en parcelas curvas (giros largos) la
+        # media de los puntos cae dentro de la curva y la descentra.
+        center = (points.min(axis=0) + points.max(axis=0)) / 2.0
 
         # Obtener normales de la región. Las normales apuntan hacia el exterior
         # de la corteza; su promedio proporciona una dirección de observación
@@ -1619,15 +1621,6 @@ class VisualizacionML:
 
         outward /= norm
 
-        bounds = [0.0] * 6
-        polyData.GetBounds(bounds)
-        size = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4], 1.0)
-
-        # Distancia suficientemente grande para que la cámara quede fuera
-        # de la superficie, pero mantenga la región claramente visible.
-        distance = max(size * 3.0, 35.0)
-        cameraPosition = center + outward * distance
-
         threeDView = self._obtenerThreeDView()
         if threeDView is None:
             return
@@ -1636,6 +1629,18 @@ class VisualizacionML:
             return
 
         camera = renderer.GetActiveCamera()
+
+        # La cámara está en la vista exterior base (seleccionarRegion la
+        # restaura antes de enfocar): su distancia es la de la vista general.
+        radius = float(np.linalg.norm(points - center, axis=1).max())
+        distance = self._distanciaEncuadre(
+            radius,
+            camera.GetViewAngle(),
+            renderer.GetTiledAspectRatio(),
+            camera.GetDistance()
+        )
+        cameraPosition = center + outward * distance
+
         camera.SetPosition(*cameraPosition.tolist())
         camera.SetFocalPoint(*center.tolist())
 
@@ -1647,6 +1652,46 @@ class VisualizacionML:
         camera.SetClippingRange(max(0.1, distance * 0.01), max(3000.0, distance * 20.0))
         renderer.ResetCameraClippingRange()
         threeDView.forceRender()
+
+    # Fracción del lado más estrecho de la vista 3D que ocupa la parcela
+    # enfocada: el resto muestra la corteza de alrededor como contexto.
+    FRACCION_ENCUADRE = 0.5
+    # Fracción máxima: la parcela siempre cabe entera, con margen.
+    FRACCION_MAXIMA = 0.9
+    # Distancia mínima (mm): las parcelas pequeñas no se ven de tan cerca
+    # que se pierda dónde están en el cerebro.
+    DISTANCIA_MINIMA = 150.0
+
+    @classmethod
+    def _distanciaEncuadre(cls, radio, anguloVista, aspecto, distanciaVistaGeneral=None):
+        """
+        Distancia de la cámara al centro de una parcela de radio `radio` (mm)
+        para que su diámetro ocupe FRACCION_ENCUADRE del lado más estrecho
+        de la vista. anguloVista es el ángulo vertical de la cámara (grados)
+        y aspecto, ancho/alto de la vista: si es más alta que ancha, el
+        lado estrecho es el horizontal.
+
+        No se aleja más que la vista general del cerebro
+        (distanciaVistaGeneral) salvo que haga falta para que la parcela
+        quepa entera (FRACCION_MAXIMA).
+        """
+        tangente = np.tan(np.radians(anguloVista) / 2.0)
+
+        if 0.0 < aspecto < 1.0:
+            tangente *= aspecto
+
+        tangente = max(tangente, 1e-3)
+
+        distancia = radio / (cls.FRACCION_ENCUADRE * tangente)
+
+        if distanciaVistaGeneral:
+            distancia = min(distancia, distanciaVistaGeneral)
+
+        return max(
+            distancia,
+            radio / (cls.FRACCION_MAXIMA * tangente),
+            cls.DISTANCIA_MINIMA
+        )
 
     def _obtenerThreeDView(self):
         try:
