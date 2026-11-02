@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Logs que FreeSurfer deja junto a los scripts
+*.log
+
+# Compilación de la extensión (make package)
+build/
+*-build/
+
+# Datos de pacientes: nunca al repositorio
+*.nii
+*.nii.gz
+*.mgz
+*.dcm
