@@ -1,21 +1,23 @@
-"""Inferencia de la SOZ por parcela Destrieux para la extensión de Slicer (modelo exportado por 13_exportar_slicer.py).
+"""Inferencia de la SOZ por parcela Destrieux para la extensión de Slicer (modelo exportado por 13_exportar_slicer.py
+o 14_exportar_slicer_15pacientes.py).
 
 Módulo autónomo: no necesita el paquete `epi`, solo numpy, pandas, scipy, scikit-learn y joblib. Reproduce
-epi.prediccion.predecir_paciente + salida_simple para UN paciente con el ensamble de solo sEEG (IMP-T-Q):
+epi.prediccion.predecir_paciente + salida_simple para UN paciente con el Extra Trees de solo sEEG (IMP-T-Q):
   1. implantada = la parcela tiene algún valor sEEG (antes de enmascarar);
   2. un marcador constante en el paciente (p. ej. EI = 0 en todas) no está disponible -> NaN;
   3. cada marcador pasa a percentil dentro del paciente, solo con las parcelas implantadas;
-  4. el pipeline guardado (imputación con indicador + escalado + ensamble) da p;
+  4. el pipeline guardado (imputación con indicador + escalado + Extra Trees) da p;
   5. percentil de p -> probabilidad recalibrada ("rango") y marca de SOZ (umbral relativo);
   6. peso_mapa: las marcadas conservan su probabilidad; las demás reciben 0,6 × la de la marcada vecina más alta,
      0,3 × la de segundo orden y 0 lejos.
 
 Uso:
     import soz_inferencia
-    modelo = soz_inferencia.cargar_modelo("soz_ensamble_sEEG_15pacientes.joblib")  # una vez
+    modelo = soz_inferencia.cargar_modelo("soz_extratrees_sEEG_sin0391.joblib")  # una vez
     tabla = soz_inferencia.predecir("paciente.csv", modelo)  # o un DataFrame con region_destrieux + seeg_*
-La entrada son las 148 regiones con los nombres del proyecto ('<etiqueta Destrieux> L' / 'R'). El rendimiento
-esperado es el del LOPO (AUROC media por paciente 0,869): ordena las parcelas, no da una probabilidad segura.
+(con los 15 pacientes: "soz_extratrees_sEEG_15pacientes.joblib"). La entrada son las 148 regiones con los nombres
+del proyecto ('<etiqueta Destrieux> L' / 'R'). El rendimiento esperado es el del LOPO (AUROC media por paciente
+0,875 [IC 95 % 0,804–0,935]): ordena las parcelas, no da una probabilidad segura.
 """
 import warnings
 

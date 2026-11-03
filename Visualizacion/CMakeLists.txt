@@ -61,7 +61,7 @@ set(MODULE_LIB_FILES
   Pipeline/pial.py
   Inferencia/inferencia_ml.py
   Inferencia/soz_inferencia.py
-  Inferencia/soz_ensamble_sEEG_15pacientes.joblib
+  Inferencia/soz_extratrees_sEEG_15pacientes.joblib
   VisualizacionML/visualizacion_ml.py
   VisualizacionML/visualizacion_electrodos.py
   VisualizacionML/visualizacion_electrodos_barra.py

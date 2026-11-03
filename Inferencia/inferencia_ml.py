@@ -17,7 +17,7 @@ from importlib import metadata
 from pathlib import Path
 
 INFERENCIA_DIR = Path(__file__).resolve().parent
-MODELO_FILE = INFERENCIA_DIR / "soz_ensamble_sEEG_15pacientes.joblib"
+MODELO_FILE = INFERENCIA_DIR / "soz_extratrees_sEEG_15pacientes.joblib"
 
 # Debe coincidir con modelo["versiones"]["scikit-learn"] del .joblib para que prediga igual que en el entrenamiento.
 VERSION_SKLEARN = "1.9.1"

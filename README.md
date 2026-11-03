@@ -81,12 +81,12 @@ Desde esta carpeta (macOS; en Linux, la ruta del ejecutable de Slicer):
 
 ## Modelo
 
-`Inferencia/soz_ensamble_sEEG_15pacientes.joblib` es el modelo final del
-experimento IMP-T-Q: un ensamble (ExtraTrees + regresión logística) que usa
+`Inferencia/soz_extratrees_sEEG_15pacientes.joblib` es el modelo final del
+experimento IMP-T-Q: un clasificador Extra Trees que usa
 solo los cuatro marcadores sEEG por región (EI, HFO, ER y SE). Está entrenado
 con los 15 pacientes del estudio, sin excluir ninguno, y con scikit-learn 1.9.1.
 El rendimiento esperado en un paciente nuevo es el de la validación dejando un
-paciente fuera (LOPO): AUROC media por paciente de 0,869. El modelo **ordena**
+paciente fuera (LOPO): AUROC media por paciente de 0,875 (IC 95 % 0,804–0,935). El modelo **ordena**
 las regiones de más a menos sospechosa; no da una probabilidad segura.
 
 ## Autores
@@ -102,6 +102,6 @@ docencia, uso personal, universidades, hospitales públicos...). El uso
 comercial no está permitido. Se eligió esta licencia, más restrictiva que MIT
 o Apache, para que la herramienta no se use con fines de lucro.
 
-El modelo incluido (`Inferencia/soz_ensamble_sEEG_15pacientes.joblib`) se
+El modelo incluido (`Inferencia/soz_extratrees_sEEG_15pacientes.joblib`) se
 distribuye con la misma licencia. FreeSurfer no se incluye y tiene su propia
 licencia.
