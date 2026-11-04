@@ -938,6 +938,9 @@ class VisualizacionML:
             "vtkMRMLModelNode",
             nombre
         )
+        # Marca la corteza de la extensión para quitarla al visualizar
+        # otro paciente (limpiarVisualizacionAnterior).
+        modelNode.SetAttribute("MLCorteza", "1")
         modelNode.SetAndObservePolyData(polyData)
         modelNode.CreateDefaultDisplayNodes()
 
@@ -1735,64 +1738,45 @@ class VisualizacionML:
 
     def limpiarVisualizacionAnterior(self):
         """
-        Elimina únicamente los nodos generados por esta
-        visualización cortical.
+        Elimina de la escena la corteza y las regiones ML de cualquier
+        visualización anterior, sea de este paciente o de otro.
+
+        Solo se muestra un paciente a la vez: seleccionarRegion oculta
+        las regiones de esta instancia (self.mlModels), así que las de
+        una visualización anterior seguirían visibles al seleccionar.
         """
 
         # Liberar selección/panel anterior.
         self.cerrar()
 
-        # Eliminar overlays ML: los de esta instancia y los que queden en
-        # la escena de una instancia anterior (p. ej. tras recargar el
-        # módulo), que se reconocen por su atributo MLLabel.
-        prefijoNodo = f"{self.subjectDir.name}_ML_"
-        huerfanos = [
+        # Regiones ML (atributo MLLabel) y corteza (MLCorteza) de esta
+        # instancia o de otra anterior, también tras recargar el módulo.
+        # Por nombre, la corteza de este paciente creada por versiones
+        # que no ponían el atributo.
+        nombresCorteza = {
+            f"{self.subjectDir.name}_LH_Pial",
+            f"{self.subjectDir.name}_RH_Pial",
+        }
+
+        anteriores = [
             nodo
             for nodo in slicer.util.getNodesByClass("vtkMRMLModelNode")
             if nodo.GetAttribute("MLLabel") is not None
-            and nodo.GetName().startswith(prefijoNodo)
-            and nodo not in self.mlModels
+            or nodo.GetAttribute("MLCorteza") is not None
+            or nodo.GetName() in nombresCorteza
         ]
 
-        for nodo in list(self.mlModels) + huerfanos:
+        for nodo in anteriores:
 
-            if nodo is not None:
-
-                print(
-                    f"[Limpieza] Eliminando overlay ML "
-                    f"{nodo.GetName()}"
-                )
-
-                slicer.mrmlScene.RemoveNode(
-                    nodo
-                )
-
-        self.mlModels = []
-
-        # Eliminar superficies pial generadas anteriormente.
-        nombres = [
-            f"{self.subjectDir.name}_LH_Pial",
-            f"{self.subjectDir.name}_RH_Pial"
-        ]
-
-        for nombre in nombres:
-
-            nodo = (
-                slicer.mrmlScene.GetFirstNodeByName(
-                    nombre
-                )
+            print(
+                f"[Limpieza] Eliminando {nodo.GetName()}"
             )
 
-            if nodo:
+            slicer.mrmlScene.RemoveNode(
+                nodo
+            )
 
-                print(
-                    f"[Limpieza] Eliminando "
-                    f"{nombre}"
-                )
-
-                slicer.mrmlScene.RemoveNode(
-                    nodo
-                )
+        self.mlModels = []
 
     # ==============================================================
     # EJECUCIÓN COMPLETA

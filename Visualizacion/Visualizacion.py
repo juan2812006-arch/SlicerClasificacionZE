@@ -3484,6 +3484,99 @@ class VisualizacionTest(ScriptedLoadableModuleTest):
         d = distancia(70.0, 30.0, 1.5, 200.0)
         self.assertLessEqual(2 * 70.0 / (2 * d * tangente), 0.9 + 1e-9)
 
+    def test_seleccionOcultaRegionesDeOtroPaciente(self):
+
+        self.delayDisplay("Al seleccionar una región se ocultan todas las demás")
+
+        import numpy as np
+
+        import visualizacion_ml
+        from visualizacion_ml import VisualizacionML
+
+        nib = visualizacion_ml.nib
+
+        if nib is None:
+            logging.warning("Test de selección omitido; falta nibabel.")
+            return
+
+        # Octaedro: la mitad superior es RegA y la inferior RegB.
+        vertices = np.array(
+            [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]],
+            dtype=np.float32
+        ) * 50.0
+        caras = np.array(
+            [[0, 2, 4], [0, 4, 3], [0, 3, 5], [0, 5, 2],
+             [1, 4, 2], [1, 3, 4], [1, 5, 3], [1, 2, 5]]
+        )
+        etiquetas = np.array([0, 1, 0, 1, 0, 1])
+        colores = np.array([[200, 0, 0, 0, 0], [0, 200, 0, 0, 0]])
+
+        def crearPaciente(carpeta):
+            (carpeta / "surf").mkdir(parents=True)
+            (carpeta / "label").mkdir()
+            for hemisferio in ("lh", "rh"):
+                nib.freesurfer.io.write_geometry(
+                    str(carpeta / "surf" / f"{hemisferio}.pial"), vertices, caras
+                )
+                nib.freesurfer.io.write_annot(
+                    str(carpeta / "label" / f"{hemisferio}.aparc.a2009s.annot"),
+                    etiquetas, colores, [b"RegA", b"RegB"], fill_ctab=True
+                )
+            (carpeta / "predicciones_epileptogenicidad.csv").write_text(
+                "label,probabilidad\nctx_lh_RegA,1\nctx_lh_RegB,0.5\n"
+                "ctx_rh_RegA,0.3\n",
+                encoding="utf-8"
+            )
+            return carpeta
+
+        def visualizar(carpeta):
+            # Lo mismo que ejecutar(), sin el panel (no hay ventana
+            # principal con --no-main-window).
+            visualizador = VisualizacionML(carpeta, None)
+            visualizador.limpiarVisualizacionAnterior()
+            visualizador.leerPredicciones()
+            visualizador.crearCortezaCompleta()
+            visualizador.regionInfoLabel = qt.QLabel()
+            return visualizador
+
+        with tempfile.TemporaryDirectory() as tmp:
+
+            pacienteA = crearPaciente(Path(tmp) / "pacienteA")
+            pacienteB = crearPaciente(Path(tmp) / "pacienteB")
+
+            # Como el widget al visualizar otro paciente: cerrar() y
+            # una instancia nueva.
+            anterior = visualizar(pacienteA)
+            anterior.cerrar()
+
+            actual = visualizar(pacienteB)
+            actual.seleccionarRegion(actual.mlModels[0])
+
+            modelos = slicer.util.getNodesByClass("vtkMRMLModelNode")
+
+            visibles = [
+                nodo.GetName()
+                for nodo in modelos
+                if nodo.GetAttribute("MLLabel") is not None
+                and nodo.GetDisplayNode().GetVisibility()
+            ]
+
+            self.assertEqual(visibles, [actual.mlModels[0].GetName()])
+
+            # Tampoco queda la corteza del paciente anterior.
+            piales = sorted(
+                nodo.GetName()
+                for nodo in modelos
+                if nodo.GetName().endswith("_Pial")
+            )
+
+            self.assertEqual(
+                piales,
+                ["pacienteB_LH_Pial", "pacienteB_RH_Pial"]
+            )
+
+            actual.cerrar()
+
     def test_modeloEmpaquetadoYRecarga(self):
 
         self.delayDisplay("El modelo existe, se empaqueta y Reload lo vuelve a leer")
