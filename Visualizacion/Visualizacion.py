@@ -156,6 +156,31 @@ def carpetaExtension(nombre):
     return moduloDir.parent / nombre
 
 
+def olvidarModulosExtension():
+    """
+    Quita de sys.modules los módulos de Inferencia/ y VisualizacionML/ para
+    que el próximo import los lea de nuevo del disco.
+
+    El botón Reload de Slicer solo vuelve a cargar este archivo: sin esto,
+    inferencia_ml (con la ruta del modelo), soz_inferencia y los
+    visualizadores seguirían en la versión anterior hasta reiniciar Slicer.
+    """
+
+    carpetas = {
+        carpetaExtension(nombre).resolve()
+        for nombre in ("Inferencia", "VisualizacionML")
+    }
+
+    for nombre, modulo in list(sys.modules.items()):
+        archivo = getattr(modulo, "__file__", None)
+        if archivo and Path(archivo).resolve().parent in carpetas:
+            del sys.modules[nombre]
+
+
+# Se ejecuta al cargar el módulo y en cada Reload.
+olvidarModulosExtension()
+
+
 #
 # Visualizacion
 #
@@ -3458,6 +3483,29 @@ class VisualizacionTest(ScriptedLoadableModuleTest):
         self.assertEqual(distancia(40.0, 30.0, 1.5, 200.0), 200.0)
         d = distancia(70.0, 30.0, 1.5, 200.0)
         self.assertLessEqual(2 * 70.0 / (2 * d * tangente), 0.9 + 1e-9)
+
+    def test_modeloEmpaquetadoYRecarga(self):
+
+        self.delayDisplay("El modelo existe, se empaqueta y Reload lo vuelve a leer")
+
+        import inferencia_ml
+
+        modelo = inferencia_ml.MODELO_FILE
+        self.assertTrue(modelo.exists(), f"Falta el modelo: {modelo}")
+
+        cmake = (
+            Path(__file__).resolve().parent / "CMakeLists.txt"
+        ).read_text(encoding="utf-8")
+        self.assertIn(f"Inferencia/{modelo.name}", cmake)
+
+        # Una sesión abierta antes de cambiar el modelo: tras Reload
+        # (olvidarModulosExtension) el import vuelve a leer el archivo.
+        inferencia_ml.MODELO_FILE = modelo.with_name("modelo_anterior.joblib")
+        olvidarModulosExtension()
+
+        import inferencia_ml as recargado
+
+        self.assertEqual(recargado.MODELO_FILE, modelo)
 
     def test_reconstruccionContactosSEEG(self):
 
